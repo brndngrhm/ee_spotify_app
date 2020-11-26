@@ -14,6 +14,7 @@ library(shinythemes)
 library(stringr)
 library(emo)
 library(recommenderlab)
+library(shinymaterial)
 
 # Define UI for application that draws a histogram
 ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
@@ -28,49 +29,51 @@ ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
                               material_text_box('artist_search', label = 'type an artist or band name', value = ''),
                               conditionalPanel("input.artist_search != ''", 
                                                material_dropdown('select_artist', 'Refine your search', '')),
-                              uiOutput('select_artist_ui')
-                          )
-                      ),
-                      material_column(
-                          width = 8,
-                          uiOutput('popularity_card')
-                      ),
-                      tags$br(),
-                      material_column(
-                          width = 8,
-                              material_dropdown('feature_select',
+                              uiOutput('select_artist_ui'),
+                              tags$br(),
+                              conditionalPanel("input.select_artist != ''", 
+                                               material_dropdown('feature_select',
                                                 label = 'Explore Some Song Features',
                                                 choices = c("danceability", "energy", "key", "loudness", "speechiness", "acousticness",
                                                             "instrumentalness", "liveness", "valence", "tempo", "duration_ms", "key_name", "mode_name", "key_mode"),
                                                 selected = "energy")
+                                               ),
+                              tags$br(),
+                              conditionalPanel("input.select_artist != ''",
+                                               material_dropdown('song_select',
+                                                                 label = 'Find Songs Similar to...',
+                                                                 choices = c("$1,000,000,000", "Big Hat", "Big Hat", "Blown up Grown Up", 
+                                                                             "Fervor & Indifference in the Bicameral Brian", "Fervor and Indifference in the Bica", 
+                                                                             "Fld Ovr", "From the Beginning to the Tail", "I Feel Exhausted", 
+                                                                             "I Feel Exhausted", "I Feel Fine", "Music Work Paper Work", "No Furniture", 
+                                                                             "No Furniture", "Obama House, Fukui Prefecture", "Queen Mary II", 
+                                                                             "Queen Mary II", "Raw Bar Obx 2002", "The Future", "The Future", 
+                                                                             "Tiny Boat", "Tiny Planet", "Tiny Town", "Turn & Go & Turn", 
+                                                                             "Turn and Go and Turn", "Wild Life", "Wild Life")
+                                               )
+                              )
+                              
+                      )),
+                      material_column(
+                          width = 10,
+                          uiOutput('popularity_card')
                       ),
                       tags$br(),
                       material_column(
-                          width = 8,
-                          highchartOutput('ranked_features')
+                          width = 5,
+                          highchartOutput('dumbbell_plot') %>% shinycssloaders::withSpinner()
                       ),
                       tags$br(),
                       material_column(
-                          offset = 2,
-                          width = 8,
-                          material_dropdown('song_select',
-                                            label = 'Find Songs Similar to...',
-                                            choices = c("$1,000,000,000", "Big Hat", "Big Hat", "Blown up Grown Up", 
-                                            "Fervor & Indifference in the Bicameral Brian", "Fervor and Indifference in the Bica", 
-                                            "Fld Ovr", "From the Beginning to the Tail", "I Feel Exhausted", 
-                                            "I Feel Exhausted", "I Feel Fine", "Music Work Paper Work", "No Furniture", 
-                                            "No Furniture", "Obama House, Fukui Prefecture", "Queen Mary II", 
-                                            "Queen Mary II", "Raw Bar Obx 2002", "The Future", "The Future", 
-                                            "Tiny Boat", "Tiny Planet", "Tiny Town", "Turn & Go & Turn", 
-                                            "Turn and Go and Turn", "Wild Life", "Wild Life")
-                                            )
+                          width = 5,
+                          highchartOutput('feature_boxplot') %>% shinycssloaders::withSpinner()
                       ),
                       tags$br(),
                       material_column(
-                          offset = 2,
-                          width = 8,
-                          formattable::formattableOutput("cluster_reccomendation")
+                          width = 10,
+                          highchartOutput('feature_barplot') %>% shinycssloaders::withSpinner()
                       )
+
                   )
 )
 
@@ -125,6 +128,22 @@ server <- function(input, output, session){
             filter(name == input$select_artist) %>% 
             filter(popularity == max(popularity))
     })
+    
+    ############################################################################
+    # apply functions
+    
+    artist_data <- reactive(get_artist_data("Everyone Everywhere", selected_artist()$name))
+    feature_avgs <- reactive(get_feature_avgs(artist_data(), artist_name))
+    dumbbell_plot <- eventReactive(input$compare_bands, {get_dumbbell_plot(feature_avgs())})
+    feature_boxplot <- eventReactive(input$compare_bands, {get_boxplot(artist_data())})
+    feature_barplot <- eventReactive(input$compare_bands, {get_ranked_features(artist_data(), input$feature_select)})
+    
+    ############################################################################
+    #plot outputs
+    
+    output$dumbbell_plot <-  renderHighchart({dumbbell_plot()})
+    output$feature_boxplot <- renderHighchart({feature_boxplot()})
+    output$feature_barplot <- renderHighchart({feature_barplot()})
     
     ############################################################################
     

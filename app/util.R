@@ -30,7 +30,7 @@ get_artist_data <- function(artist_1, artist_2){
     filter(album_name != "Beerg Scary Monsters") 
 }
 
-test <- get_artist_data("Everyone Everywhere", "311")
+# test <- get_artist_data("Everyone Everywhere", "311")
 
 ############################
 
@@ -44,7 +44,7 @@ get_feature_avgs <- function(df, ...){
     pivot_longer(cols = 2:12)
 }
 
-get_feature_avgs(test, artist_name)
+# get_feature_avgs(test, artist_name)
 
 ############################
 
@@ -80,19 +80,19 @@ get_dumbbell_plot <- function(data){
                pointFormat = "Normalized Value: {point.y} <br> {point.message}") %>%
     hc_xAxis(title = list(text = "Normalized Feature Value")) %>%
     hc_title(text = "Average Feature Scores (Normalized)", align = "left") %>%
-    hc_subtitle(text = "shaded by artist", align = "left") %>%
+    # hc_subtitle(text = "shaded by artist", align = "left") %>%
     hc_chart(zoomType = "x")
   
 }
 
-get_dumbbell_plot(get_feature_avgs(test, artist_name))
+# get_dumbbell_plot(get_feature_avgs(test, artist_name))
 
 ############################
 
 # works with result of get_artist_data()
 get_boxplot <- function(data){
 
-boxplot_data <- test %>%
+boxplot_data <- data %>%
   mutate_if(is.numeric, scale) %>%
   pivot_longer(cols = 4:14) %>%
   rename(value = 5)
@@ -101,14 +101,14 @@ hcboxplot(x = round(boxplot_data$value,2), var = boxplot_data$name, boxplot_data
   hc_chart(type = "column") %>%
   hc_colors(c("#4db6ac", "#ffcc80")) %>%
   # hc_plotOptions(series=list(colorByPoint=TRUE)) %>%
-  hc_chart(inverted = TRUE) %>%
+  # hc_chart(inverted = TRUE) %>%
   hc_yAxis(title = list(text = "Normalized Feature Value")) %>%
   hc_title(text = "Distribution of Feature Scores (Normalized)", align = "left") %>%
-  hc_subtitle(text = "shaded by artist", align = "left") %>%
+  # hc_subtitle(text = "shaded by artist", align = "left") %>%
   hc_chart(zoomType = "x")
 }
 
-get_boxplot(test)
+# get_boxplot(test)
 
 ############################
 
@@ -147,7 +147,7 @@ get_ridgeplot <- function(df){
 
 }
   
-get_ridgeplot(test)
+# get_ridgeplot(test)
 
 ############################
 
@@ -188,7 +188,7 @@ get_ranked_features <- function(data, feature){
   
 }
 
-get_ranked_features(test, "energy")
+# get_ranked_features(test, "energy")
 
 ############################
 reccomendation <- function(df, song){
