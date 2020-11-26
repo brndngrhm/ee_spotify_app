@@ -16,11 +16,8 @@ library(emo)
 library(recommenderlab)
 
 # Define UI for application that draws a histogram
-ui <- material_page(title = 'Everyone Everywhere Music Popularity Tool',
-                  # nav_bar_color = 'blue-grey darken-2',
-                  # font_color = 'blue-grey lighten-5',
-                  # background_color = 'blue-grey darken-2',
-                  material_row(
+ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
+                    material_row(
                       material_column(
                           width = 2,
                           material_card(
@@ -28,7 +25,7 @@ ui <- material_page(title = 'Everyone Everywhere Music Popularity Tool',
                               font_color = 'white',
                               title = 'Everyone Everywhere vs...',
                               depth = 0,
-                              material_text_box('artist_search', label = 'type an artist or band name', value = "The Beatles"),
+                              material_text_box('artist_search', label = 'type an artist or band name', value = ''),
                               conditionalPanel("input.artist_search != ''", 
                                                material_dropdown('select_artist', 'Refine your search', '')),
                               uiOutput('select_artist_ui')
@@ -85,9 +82,10 @@ server <- function(input, output, session){
         get_spotify_access_token()
     })
     
-    ######################################
+    ############################################################################
     
-    # sidebar stuff: sourced from https://github.com/charlie86/sentify/blob/14dab5b47aba147b2c6b8bd3192b35ec071c63d7/server.R
+    # sidebar stuff
+    # sourced from https://github.com/charlie86/sentify/blob/14dab5b47aba147b2c6b8bd3192b35ec071c63d7/server.R
     
     artist_info <- reactive({
         req(input$artist_search != '')
@@ -100,18 +98,8 @@ server <- function(input, output, session){
         update_material_dropdown(session, 'select_artist', value = artist_info()$name[1], choices = choices)
     })
     
-    output$select_artist_ui <- renderUI({
-        req(nrow(artist_info()) > 0)
-        tagList(
-            htmlOutput('artist_img'),
-            shiny::actionButton('compare_bands', 'Compare Bands')
-        )
-    })
-    
     observeEvent(input$select_artist, {
-        
         req(nrow(artist_info()) > 0)
-        
         artist_img <- ifelse(!is.na(artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist]),
                              artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist],
                              'https://pbs.twimg.com/profile_images/509949472139669504/IQSh7By1_400x400.jpeg')
@@ -122,7 +110,24 @@ server <- function(input, output, session){
         
     })
     
-    ######################################
+    output$select_artist_ui <- renderUI({
+        req(nrow(artist_info()) > 0)
+        tagList(
+            htmlOutput('artist_img'),
+            tags$br(),
+            shiny::actionButton('compare_bands', 'Analyze Bands')
+        )
+    })
+    
+    selected_artist <- reactive({
+        req(nrow(artist_info()) > 0)
+        artist_info() %>% 
+            filter(name == input$select_artist) %>% 
+            filter(popularity == max(popularity))
+    })
+    
+    ############################################################################
+    
     #card data
     observeEvent(input$compare_bands, {
 
@@ -134,13 +139,15 @@ server <- function(input, output, session){
                                    emo::ji("partying_face"),
                                    emo::ji("hundred_points"),
                                    emo::ji("dancing"))),
-                HTML("<span style='font-size:14px'>Our proprietary multi-node single perceptron sideways propogation AI says <span style='font-weight:bold'>Everyone Everywhere</span> are the more popular than<span style='font-weight:bold'>", artist_info()$name[1], "</span>!</span>")
+                HTML("<span style='font-size:14px'>Our proprietary AI predicts <span style='font-weight:bold'>Everyone Everywhere</span> are the more popular than<span style='font-weight:bold'>", selected_artist()$name, "</span>!</span>")
                 
             )
         })
     })
     
-    #####################################
+    ############################################################################
+    
+    #feature plot
     
     features <- eventReactive(input$compare_bands,{
         
@@ -148,7 +155,7 @@ server <- function(input, output, session){
             select(artist_name, album_name, track_name, danceability, energy, key, loudness, speechiness, acousticness,
                    instrumentalness, liveness, valence, tempo, duration_ms)
         
-       input_band <- get_artist_audio_features("the beatles") %>%
+       input_band <- get_artist_audio_features(artist = selected_artist()$name) %>%
             select(artist_name, album_name, track_name, danceability, energy, key, loudness, speechiness, acousticness,
                    instrumentalness, liveness, valence, tempo, duration_ms)
         
@@ -173,6 +180,9 @@ server <- function(input, output, session){
             hc_chart(zoomType = "x")
         
     })
+    
+    #####################################
+    # recommendations
     
     observeEvent(input$song_select, {
         reccomendation_data <- reccomendation(features(), input$song_select)
