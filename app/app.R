@@ -4,17 +4,13 @@ library(shiny)
 library(dplyr)
 library(tidyr)
 library(lubridate)
-library(FITfileR)
-library(imputeTS)
-library(slider)
-library(changepoint)
 library(highcharter)
-library(leaflet)
 library(shinythemes)
 library(stringr)
 library(emo)
-library(recommenderlab)
 library(shinymaterial)
+library(reactable)
+library(ClusterR)
 
 # Define UI for application that draws a histogram
 ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
@@ -30,14 +26,14 @@ ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
                               conditionalPanel("input.artist_search != ''", 
                                                material_dropdown('select_artist', 'Refine your search', '')),
                               uiOutput('select_artist_ui'),
-                              tags$br(),
-                              conditionalPanel("input.select_artist != ''", 
-                                               material_dropdown('feature_select',
-                                                label = 'Explore Some Song Features',
-                                                choices = c("danceability", "energy", "key", "loudness", "speechiness", "acousticness",
-                                                            "instrumentalness", "liveness", "valence", "tempo", "duration_ms", "key_name", "mode_name", "key_mode"),
-                                                selected = "energy")
-                                               ),
+                              # tags$br(),
+                              # conditionalPanel("input.select_artist != ''", 
+                              #                  material_dropdown('feature_select',
+                              #                   label = 'Explore Some Song Features',
+                              #                   choices = c("danceability", "energy", "key", "loudness", "speechiness", "acousticness",
+                              #                               "instrumentalness", "liveness", "valence", "tempo", "duration_ms", "key_name", "mode_name", "key_mode"),
+                              #                   selected = "energy")
+                              #                  ),
                               tags$br(),
                               conditionalPanel("input.select_artist != ''",
                                                material_dropdown('song_select',
@@ -51,34 +47,56 @@ ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
                                                                              "Tiny Boat", "Tiny Planet", "Tiny Town", "Turn & Go & Turn", 
                                                                              "Turn and Go and Turn", "Wild Life", "Wild Life")
                                                )
+                              ),
+                              tags$br(),
+                              conditionalPanel("input.select_artist != ''",
+                                               shiny::actionButton('get_reccomendation', 'Find Similar Songs')
                               )
                               
                       )),
                       material_column(
-                          width = 10,
-                          uiOutput('popularity_card')
+                          width = 7,
+                          offset = 1,
+                          uiOutput('popularity_card') %>% shinycssloaders::withSpinner()
                       ),
                       tags$br(),
                       material_column(
-                          width = 5,
-                          highchartOutput('dumbbell_plot') %>% shinycssloaders::withSpinner()
+                          width = 7,
+                          offset = 1,
+                          uiOutput("dumbbell_title"),
+                          highchartOutput('dumbbell_plot') #%>% shinycssloaders::withSpinner()
                       ),
                       tags$br(),
                       material_column(
-                          width = 5,
-                          highchartOutput('feature_boxplot') %>% shinycssloaders::withSpinner()
+                          width = 7,
+                          offset = 1,
+                          uiOutput("ridgeplot_title"),
+                          plotOutput('ridgeplot') #%>% shinycssloaders::withSpinner()
                       ),
+                      # tags$br(),
+                      # material_column(
+                      #     width = 10,
+                      #     highchartOutput('feature_barplot') #%>% shinycssloaders::withSpinner()
+                      # ),
+                      tags$br(),
                       tags$br(),
                       material_column(
-                          width = 10,
-                          highchartOutput('feature_barplot') %>% shinycssloaders::withSpinner()
-                      )
+                          width = 7,
+                          offset = 3,
+                          uiOutput("reccomendation_title"),
+                          reactableOutput('reccomendation_table') %>% shinycssloaders::withSpinner()
+                      ),
+                      tags$br()
 
                   )
 )
 
 server <- function(input, output, session){
     
+    # sidebar stuff sourced from https://github.com/charlie86/sentify/blob/14dab5b47aba147b2c6b8bd3192b35ec071c63d7/server.R
+    
+    ############################################################################
+    #load functions, save access token
     source(here::here("app", "util.R"))
     
     spotify_access_token <- reactive({
@@ -86,42 +104,15 @@ server <- function(input, output, session){
     })
     
     ############################################################################
+    # reactive functions
     
-    # sidebar stuff
-    # sourced from https://github.com/charlie86/sentify/blob/14dab5b47aba147b2c6b8bd3192b35ec071c63d7/server.R
-    
+    #searches spotofy for artists matching user input
     artist_info <- reactive({
         req(input$artist_search != '')
         search_spotify(input$artist_search, 'artist', authorization = spotify_access_token())
     })
     
-    observeEvent(input$artist_search, {
-        choices <- artist_info()$name
-        names(choices) <- choices
-        update_material_dropdown(session, 'select_artist', value = artist_info()$name[1], choices = choices)
-    })
-    
-    observeEvent(input$select_artist, {
-        req(nrow(artist_info()) > 0)
-        artist_img <- ifelse(!is.na(artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist]),
-                             artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist],
-                             'https://pbs.twimg.com/profile_images/509949472139669504/IQSh7By1_400x400.jpeg')
-        
-        output$artist_img <- renderText({
-            HTML(str_glue('<img src={artist_img} height="200">'))
-        })
-        
-    })
-    
-    output$select_artist_ui <- renderUI({
-        req(nrow(artist_info()) > 0)
-        tagList(
-            htmlOutput('artist_img'),
-            tags$br(),
-            shiny::actionButton('compare_bands', 'Analyze Bands')
-        )
-    })
-    
+    # stores the selected artist once the selection is made
     selected_artist <- reactive({
         req(nrow(artist_info()) > 0)
         artist_info() %>% 
@@ -129,87 +120,92 @@ server <- function(input, output, session){
             filter(popularity == max(popularity))
     })
     
-    ############################################################################
-    # apply functions
-    
     artist_data <- reactive(get_artist_data("Everyone Everywhere", selected_artist()$name))
     feature_avgs <- reactive(get_feature_avgs(artist_data(), artist_name))
-    dumbbell_plot <- eventReactive(input$compare_bands, {get_dumbbell_plot(feature_avgs())})
-    feature_boxplot <- eventReactive(input$compare_bands, {get_boxplot(artist_data())})
-    feature_barplot <- eventReactive(input$compare_bands, {get_ranked_features(artist_data(), input$feature_select)})
     
     ############################################################################
-    #plot outputs
+    # Observers - used to update things in real time
     
-    output$dumbbell_plot <-  renderHighchart({dumbbell_plot()})
-    output$feature_boxplot <- renderHighchart({feature_boxplot()})
-    output$feature_barplot <- renderHighchart({feature_barplot()})
+    # updates the artist drop down list as user types
+    observeEvent(input$artist_search, {
+        choices <- artist_info()$name
+        names(choices) <- choices
+        update_material_dropdown(session, 'select_artist', value = artist_info()$name[1], choices = choices)
+    })
     
-    ############################################################################
-    
-    #card data
-    observeEvent(input$compare_bands, {
-
-        Sys.sleep(3)
+    # updates album art once user makes artist selection
+    observeEvent(input$select_artist, {
+        req(nrow(artist_info()) > 0)
         
-        output$popularity_card <- renderUI({
-            material_card(
-                title = HTML(paste("<span style='font-weight:bold'> and the winner is... Everyone Everywhere!!</span>",
-                                   emo::ji("partying_face"),
-                                   emo::ji("hundred_points"),
-                                   emo::ji("dancing"))),
-                HTML("<span style='font-size:14px'>Our proprietary AI predicts <span style='font-weight:bold'>Everyone Everywhere</span> are the more popular than<span style='font-weight:bold'>", selected_artist()$name, "</span>!</span>")
-                
-            )
+        img <- artist_info() %>% 
+            filter(name == input$select_artist) %>%
+            select(images) %>%
+            unnest(cols = c(images)) %>%
+            head(1) %>%
+            pull(url)
+        
+        artist_img <- ifelse(!is.na(img),
+                             img,
+                             'https://pbs.twimg.com/profile_images/509949472139669504/IQSh7By1_400x400.jpeg')
+        
+        # artist_img <- ifelse(!is.na(artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist]),
+        #                      artist_info()$images[[1]]$url[1][artist_info()$name == input$select_artist],
+        #                      'https://pbs.twimg.com/profile_images/509949472139669504/IQSh7By1_400x400.jpeg')
+        
+        output$artist_img <- renderText({
+            HTML(str_glue('<img src={artist_img} height="200">'))
         })
+        
     })
     
     ############################################################################
-    
-    #feature plot
-    
-    features <- eventReactive(input$compare_bands,{
-        
-        ee <- get_artist_audio_features(artist = "everyone everywhere") %>%
-            select(artist_name, album_name, track_name, danceability, energy, key, loudness, speechiness, acousticness,
-                   instrumentalness, liveness, valence, tempo, duration_ms)
-        
-       input_band <- get_artist_audio_features(artist = selected_artist()$name) %>%
-            select(artist_name, album_name, track_name, danceability, energy, key, loudness, speechiness, acousticness,
-                   instrumentalness, liveness, valence, tempo, duration_ms)
-        
-        bind_rows(ee, input_band)
-        
+    # Event Reactives - used to create output after some action is taken
+    popularity_card <- eventReactive(input$compare_bands,{
+        material_card(
+            title = HTML(paste("<span style='font-weight:bold'> and the winner is... Everyone Everywhere!!</span>",
+                               emo::ji("partying_face"),
+                               emo::ji("hundred_points"),
+                               emo::ji("dancing"))),
+            HTML("<span style='font-size:14px'>Our proprietary AI predicts <span style='font-weight:bold'>Everyone Everywhere</span> are more popular than<span style='font-weight:bold'>", selected_artist()$name, "</span>!</span>")
+            
+        )
     })
     
-    feature_data <- reactive(
-        feature_analysis(features(), input$feature_select)
-    )
+    dumbbell_title <- eventReactive(input$compare_bands, {
+        shiny::tags$h4("Comparison of Song Features")
+    })
+    dumbbell_plot <- eventReactive(input$compare_bands, {get_dumbbell_plot(feature_avgs())})
     
-    output$ranked_features <- renderHighchart({
-
-        plot_title <- paste("Top 10 Tracks For Each Artist Ranked by", str_to_title(input$feature_select))
-        
-        hchart(feature_data(), type = "bar",  hcaes(x = track_name, y = param, color = artist_color, alb = album_name, param_choice = param_choice)) %>%
-            hc_tooltip(headerFormat = '', pointFormat = "<b>{point.alb}</b> <br> Track: {point.track_name} <br> {point.param_choice}: {point.y}") %>%
-            hc_yAxis(title = list(text = input$feature_select)) %>%
-            hc_xAxis(title = list(text = " ")) %>%
-            hc_title(text = plot_title, align = "left") %>%
-            hc_subtitle(text = "shaded by artist", align = "left") %>%
-            hc_chart(zoomType = "x")
-        
+    ridgeplot_title <- eventReactive(input$compare_bands, {
+        shiny::tags$h4("Distrbution of Song Features")
+    })
+    ridgeplot <- eventReactive(input$compare_bands, {get_ridgeplot(artist_data())})
+    
+    # feature_barplot <- eventReactive(input$compare_bands | input$feature_select, ignoreInit = TRUE, {get_ranked_features(artist_data(), input$feature_select)})
+    
+    reccomendation_table <- eventReactive(input$get_reccomendation, {get_reccomendation(artist_data(), input$song_select)})
+    reccomendation_title <- eventReactive(input$get_reccomendation, {
+            shiny::tags$h4(glue::glue("5 {selected_artist()$name} songs similar to {input$song_select}"))
     })
     
-    #####################################
-    # recommendations
-    
-    observeEvent(input$song_select, {
-        reccomendation_data <- reccomendation(features(), input$song_select)
-        
-    output$cluster_reccomendation <- formattable::renderFormattable({
-        formattable::formattable(reccomendation_data)
+    ############################################################################
+    # outputs
+    output$select_artist_ui <- renderUI({
+        req(nrow(artist_info()) > 0)
+        tagList(
+            htmlOutput('artist_img'),
+            tags$br(),
+            shiny::actionButton('compare_bands', 'Analyze')
+        )
     })
-    })
+    output$popularity_card <- renderUI(popularity_card())
+    output$dumbbell_title <- renderUI(dumbbell_title())
+    output$dumbbell_plot <- renderHighchart(dumbbell_plot())
+    output$ridgeplot_title <- renderUI(ridgeplot_title())
+    output$ridgeplot <- renderPlot(ridgeplot())
+    # output$feature_barplot <- renderHighchart(feature_barplot())
+    output$reccomendation_title <- renderUI(reccomendation_title())
+    output$reccomendation_table <- renderReactable(reccomendation_table())
 
 }
 
