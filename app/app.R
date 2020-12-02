@@ -38,26 +38,31 @@ ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
                               conditionalPanel("input.select_artist != ''",
                                                material_dropdown('song_select',
                                                                  label = 'Find Songs Similar to...',
-                                                                 choices = c("$1,000,000,000", "Big Hat", "Big Hat", "Blown up Grown Up", 
-                                                                             "Fervor & Indifference in the Bicameral Brian", "Fervor and Indifference in the Bica", 
-                                                                             "Fld Ovr", "From the Beginning to the Tail", "I Feel Exhausted", 
-                                                                             "I Feel Exhausted", "I Feel Fine", "Music Work Paper Work", "No Furniture", 
+                                                                 choices = c("$1,000,000,000", "Big Hat", "Blown up Grown Up", 
+                                                                             "Fervor & Indifference in the Bicameral Brian",
+                                                                             "Fld Ovr", "From the Beginning to the Tail", 
+                                                                             "I Feel Exhausted", "I Feel Fine", "Music Work Paper Work",
                                                                              "No Furniture", "Obama House, Fukui Prefecture", "Queen Mary II", 
-                                                                             "Queen Mary II", "Raw Bar Obx 2002", "The Future", "The Future", 
+                                                                             "Queen Mary II", "Raw Bar Obx 2002", "The Future", 
                                                                              "Tiny Boat", "Tiny Planet", "Tiny Town", "Turn & Go & Turn", 
-                                                                             "Turn and Go and Turn", "Wild Life", "Wild Life")
+                                                                             "Turn and Go and Turn", "Wild Life")
                                                )
                               ),
                               tags$br(),
                               conditionalPanel("input.select_artist != ''",
                                                shiny::actionButton('get_reccomendation', 'Find Similar Songs')
+                              ),
+                              tags$br(),
+                              conditionalPanel("input.select_artist != ''",
+                                               shiny::actionButton('about', 'About',
+                                                                   style="color: #fff; background-color: #ee6e73; border-color: #ee6e73")
                               )
                               
                       )),
                       material_column(
                           width = 7,
                           offset = 1,
-                          uiOutput('popularity_card') %>% shinycssloaders::withSpinner()
+                          uiOutput('popularity_card') %>% shinycssloaders::withSpinner(color = "#ee6e73")
                       ),
                       tags$br(),
                       material_column(
@@ -158,6 +163,20 @@ server <- function(input, output, session){
         
     })
     
+    # About modal
+    observeEvent(input$about, {
+        show_alert(
+            title = " Everyone Everywhere AI Music Popularity Analyzer",
+            type = "info",
+            text = tags$span(
+                "The app uses AI to tell you if Everyone Everywhere is more popular than any other band on Spotify. To learn more about the features presented, click",
+                tags$a(href = "https://developer.spotify.com/documentation/web-api/reference/tracks/get-audio-features/", "here."),
+                tags$br(),
+            ),
+        html = FALSE,
+        width = "60%")
+    })
+    
     ############################################################################
     # Event Reactives - used to create output after some action is taken
     popularity_card <- eventReactive(input$compare_bands,{
@@ -177,7 +196,7 @@ server <- function(input, output, session){
     dumbbell_plot <- eventReactive(input$compare_bands, {get_dumbbell_plot(feature_avgs())})
     
     ridgeplot_title <- eventReactive(input$compare_bands, {
-        shiny::tags$h4("Distrbution of Song Features")
+        shiny::tags$h4("Distribution of Song Features")
     })
     ridgeplot <- eventReactive(input$compare_bands, {get_ridgeplot(artist_data())})
     

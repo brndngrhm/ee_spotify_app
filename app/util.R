@@ -56,8 +56,8 @@ get_dumbbell_plot <- function(data){
                             ))
   
   hchart(dumbbell_df, "columnrange", hcaes(x = name, low = artist_1_value, high = artist_2_value, message = message), color = "lightgray") %>%
-    hc_add_series(dumbbell_df, "point", name = artist_1_name, hcaes(x = name, y = round(artist_1_value, 2)), color = "#4db6ac", showInLegend = TRUE) %>%
-    hc_add_series(dumbbell_df, "point", name = artist_2_name, hcaes(x = name, y = round(artist_2_value, 2)), color = "#ffcc80", showInLegend = TRUE) %>%
+    hc_add_series(dumbbell_df, "point", name = artist_1_name, hcaes(x = name, y = round(artist_1_value, 2)), color = "#ee6e73", showInLegend = TRUE) %>%
+    hc_add_series(dumbbell_df, "point", name = artist_2_name, hcaes(x = name, y = round(artist_2_value, 2)), color = "#607d8b", showInLegend = TRUE) %>%
     hc_chart(inverted = TRUE) %>%
     hc_plotOptions(columnrange = list(pointWidth = 1)) %>%
     hc_tooltip(headerFormat = "{point.message}",
@@ -114,16 +114,13 @@ get_ridgeplot <- function(df){
     distinct() %>% 
     pull(artist_name)
   
-  group_colors <- tibble(`Everyone Everywhere` = "#4db6ac", 
-                         artist_2 = "#ffcc80")
-  
-  names(group_colors)[2] <- other_artist
-  
+  my_cols <-  c("Everyone Everywhere" = "#ee6e73", other_artist = "#4db6ac")
+
   #plot
-  ggplot(df, aes(x = value, y = name, fill = artist_name)) + 
-    scale_fill_manual(values = group_colors) + 
-    theme_grey() + 
-    geom_density_ridges(alpha = .75) + 
+  ggplot(df, aes(x = value, y = name, fill = artist_name)) +
+    scale_fill_manual(values = c("Everyone Everywhere" = "#ee6e73", "#607d8b")) +
+    theme_grey() +
+    geom_density_ridges(alpha = .75) +
     labs(x = "Normalized Feature Score",
          y = "",
          fill = ''
@@ -133,10 +130,11 @@ get_ridgeplot <- function(df){
           legend.background = element_rect(fill="#f5f5f5"),
           # legend.position = c(0.87, 0.90),
           text = element_text(size = 16),
-          panel.grid.minor = element_blank(), 
+          panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
           plot.background = element_rect(fill = "#f5f5f5")
     )
+
 }
 
 # get_ridgeplot(test)
@@ -210,7 +208,7 @@ get_reccomendation <- function(df, song){
   other %>%
     filter(cluster == pred_cluster[1]) %>%
     ungroup()%>%
-    sample_n(size = 5) %>%
+    sample_n(size = 5, replace = TRUE) %>%
     select(album_name, track_name) %>%
     # select(-c(artist_name, cluster)) %>%
     mutate_if(is.numeric, ~round(.x, 2)) %>%
