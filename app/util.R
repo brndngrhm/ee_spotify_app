@@ -20,11 +20,22 @@ get_artist_data <- function(artist_1, artist_2){
 
 # format data: returns dataframe with features avgs per artist - works with result of get_artist_data()
 get_feature_avgs <- function(df, ...){
+
+  ee_df <- df %>%
+    filter(artist_name == "Everyone Everywhere")
+  ee_pre_process <- caret::preProcess(ee_df, method = "range", rangeBounds = c(0, 1))
+  ee_scaled <- predict(ee_pre_process, ee_df)
   
-  df %>%
-    mutate_if(is.numeric, scale) %>%
+  other_df <- df %>%
+    filter(artist_name != "Everyone Everywhere")
+  other_pre_process <- caret::preProcess(other_df, method = "range", rangeBounds = c(0, 1))
+  other_scaled <- predict(other_pre_process, other_df)
+  
+  ee_scaled %>%
+    bind_rows(., other_scaled) %>%
     group_by(...) %>%
     summarise(across(where(is.numeric), ~mean(.x, na.rm = T))) %>%
+    # mutate_if(is.numeric, scale) %>%
     pivot_longer(cols = 2:12)
 }
 
@@ -61,8 +72,8 @@ get_dumbbell_plot <- function(data){
     hc_chart(inverted = TRUE) %>%
     hc_plotOptions(columnrange = list(pointWidth = 1)) %>%
     hc_tooltip(headerFormat = "{point.message}",
-               pointFormat = "Normalized Value: {point.y} <br> {point.message}") %>%
-    hc_xAxis(title = list(text = "Normalized Feature Value")) %>%
+               pointFormat = "Scaled Value: {point.y} <br> {point.message}") %>%
+    hc_xAxis(title = list(text = "Scaled Feature Value")) %>%
     # hc_title(text = "Average Feature Scores (Normalized)", align = "left") %>%
     # hc_subtitle(text = "shaded by artist", align = "left") %>%
     hc_chart(zoomType = "x")
@@ -86,7 +97,7 @@ hcboxplot(x = round(boxplot_data$value,2), var = boxplot_data$name, boxplot_data
   hc_colors(c("#4db6ac", "#ffcc80")) %>%
   # hc_plotOptions(series=list(colorByPoint=TRUE)) %>%
   hc_chart(inverted = TRUE) %>%
-  hc_yAxis(title = list(text = "Normalized Feature Value"),
+  hc_yAxis(title = list(text = "Scaled Feature Value"),
            min = -5, max = 5) %>%
   # hc_title(text = "Distribution of Feature Scores (Normalized)", align = "left") %>%
   # hc_subtitle(text = "shaded by artist", align = "left") %>%
@@ -121,7 +132,7 @@ get_ridgeplot <- function(df){
     scale_fill_manual(values = c("Everyone Everywhere" = "#ee6e73", "#607d8b")) +
     theme_grey() +
     geom_density_ridges(alpha = .75) +
-    labs(x = "Normalized Feature Score",
+    labs(x = "Scaled Feature Score",
          y = "",
          fill = ''
          # title = "Distribution of Song Features"
@@ -174,7 +185,7 @@ get_ranked_features <- function(data, feature){
     hc_add_series(df_bar, "line", name = "Everyone Everywhere", hcaes(x = 1, y = 1), visible = TRUE, color = "#4db6ac", showInLegend = TRUE) %>%
     hc_add_series(df_bar, "line", name = other_artist, hcaes(x = 1, y = 1), visible = TRUE, color = "#ffcc80", showInLegend = TRUE) %>%
     # hc_tooltip(pointFormat = "<b>{point.alb}</b> <br> Track: {point.x} <br> {point.feature_choice}: {point.y}") %>%
-    hc_yAxis(title = list(text = "Normalized Feature Score")) %>%
+    hc_yAxis(title = list(text = "Scaled Feature Score")) %>%
     hc_xAxis(title = list(text = " ")) %>%
     hc_chart(zoomType = "x")
   

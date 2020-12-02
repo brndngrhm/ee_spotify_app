@@ -13,7 +13,7 @@ library(reactable)
 library(ClusterR)
 
 # Define UI for application that draws a histogram
-ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
+ui <- material_page(title = 'Everyone Everywhere AI Popularity Analyzer',
                     material_row(
                       material_column(
                           width = 2,
@@ -42,7 +42,7 @@ ui <- material_page(title = 'Everyone Everywhere AI Music Popularity Analyzer',
                                                                              "Fervor & Indifference in the Bicameral Brian",
                                                                              "Fld Ovr", "From the Beginning to the Tail", 
                                                                              "I Feel Exhausted", "I Feel Fine", "Music Work Paper Work",
-                                                                             "No Furniture", "Obama House, Fukui Prefecture", "Queen Mary II", 
+                                                                             "No Furniture", "Obama House, Fukui Prefecture",
                                                                              "Queen Mary II", "Raw Bar Obx 2002", "The Future", 
                                                                              "Tiny Boat", "Tiny Planet", "Tiny Town", "Turn & Go & Turn", 
                                                                              "Turn and Go and Turn", "Wild Life")
@@ -166,7 +166,7 @@ server <- function(input, output, session){
     # About modal
     observeEvent(input$about, {
         show_alert(
-            title = " Everyone Everywhere AI Music Popularity Analyzer",
+            title = " Everyone Everywhere AI Popularity Analyzer",
             type = "info",
             text = tags$span(
                 "The app uses AI to tell you if Everyone Everywhere is more popular than any other band on Spotify. To learn more about the features presented, click",
