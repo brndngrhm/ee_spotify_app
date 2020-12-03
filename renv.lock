@@ -371,13 +371,6 @@
       "Repository": "CRAN",
       "Hash": "b7f3a3bee8ec0858e8cbc09cfdc35ced"
     },
-    "here": {
-      "Package": "here",
-      "Version": "0.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "2c0406b8e0a4c3516ab37be62da74e3c"
-    },
     "highcharter": {
       "Package": "highcharter",
       "Version": "0.8.2",

@@ -11,6 +11,7 @@ library(emo)
 library(shinymaterial)
 library(reactable)
 library(ClusterR)
+library(spotifyr)
 
 # Define UI for application that draws a histogram
 ui <- material_page(title = 'Everyone Everywhere AI Popularity Analyzer',
