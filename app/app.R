@@ -102,7 +102,7 @@ server <- function(input, output, session){
     
     ############################################################################
     #load functions, save access token
-    source(here::here("app", "util.R"))
+    source("util.R")
     
     spotify_access_token <- reactive({
         get_spotify_access_token()
