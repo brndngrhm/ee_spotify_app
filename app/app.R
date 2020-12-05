@@ -12,6 +12,8 @@ library(shinymaterial)
 library(reactable)
 library(ClusterR)
 library(spotifyr)
+library(ggplot2)
+library(ggridges)
 
 # Define UI for application that draws a histogram
 ui <- material_page(title = 'Everyone Everywhere AI Popularity Analyzer',
@@ -105,14 +107,19 @@ server <- function(input, output, session){
     #load functions, save access token
     source("util.R")
     
+    id <- Sys.getenv("SPOTIFY_CLIENT_ID")
+    client <- Sys.getenv("SPOTIFY_CLIENT_SECRET")
+    
     spotify_access_token <- reactive({
-        get_spotify_access_token()
+        get_spotify_access_token(client_id = id, 
+                                 client_secret = client
+                                 )
     })
     
     ############################################################################
     # reactive functions
     
-    #searches spotofy for artists matching user input
+    #searches spotify for artists matching user input
     artist_info <- reactive({
         req(input$artist_search != '')
         search_spotify(input$artist_search, 'artist', authorization = spotify_access_token())
